@@ -411,6 +411,11 @@ check_db(sqlite3 *db, int new_db, pid_t *scanner_pid)
 	}
 
 	ret = db_upgrade(db);
+	if (ret == 0) {
+		// Always rescan. Otherwise it will miss new directories while it wasn't running.
+		// TODO: Move this to a flag?
+		ret = 3;
+	}
 	if (ret != 0)
 	{
 rescan:
@@ -420,12 +425,15 @@ rescan:
 			DPRINTF(E_WARN, L_GENERAL, "New media_dir detected; rescanning...\n");
 		else if (ret == 2)
 			DPRINTF(E_WARN, L_GENERAL, "Removed media_dir detected; rescanning...\n");
+		else if (ret == 3)
+			DPRINTF(E_INFO, L_GENERAL, "Rescanning...\n");
 		else
 			DPRINTF(E_WARN, L_GENERAL, "Database version mismatch (%d=>%d); need to recreate...\n",
 				ret, DB_VERSION);
 		sqlite3_close(db);
 
 		snprintf(cmd, sizeof(cmd), "rm -rf %s/files.db %s/art_cache", db_path, db_path);
+		DPRINTF(E_INFO, L_GENERAL, "Deleting database and cache...\n");
 		if (system(cmd) != 0)
 			DPRINTF(E_FATAL, L_GENERAL, "Failed to clean old file cache!  Exiting...\n");
 
